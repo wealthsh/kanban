@@ -19,7 +19,8 @@ const (
 // Styling
 var (
 	unfocusedStyle = lipgloss.NewStyle().
-			Padding(1, 2)
+			Padding(1, 2).
+			Border(lipgloss.HiddenBorder())
 	focusedStyle = lipgloss.NewStyle().
 			Padding(1, 2).
 			Border(lipgloss.RoundedBorder()).
@@ -58,13 +59,31 @@ func New() *Model {
 	return &Model{}
 }
 
+// Go to next list
+func (m *Model) Next() {
+	if m.focused == done {
+		m.focused = todo
+	} else {
+		m.focused++
+	}
+}
+
+// Go to prev list
+func (m *Model) Prev() {
+	if m.focused == todo {
+		m.focused = done
+	} else {
+		m.focused--
+	}
+}
+
 // initLists is called when the application starts up.
 func (m *Model) initLists(width, height int) {
-	defaultList := list.New([]list.Item{}, list.NewDefaultDelegate(), width/divisor, height-divisor)
+	defaultList := list.New([]list.Item{}, list.NewDefaultDelegate(), width/divisor, height/2)
 
 	// Set this to false if you want to hide the help
 	// indicators at the bottom of the terminal
-	defaultList.SetShowHelp(true)
+	defaultList.SetShowHelp(false)
 
 	m.lists = []list.Model{defaultList, defaultList, defaultList}
 
@@ -79,6 +98,7 @@ func (m *Model) initLists(width, height int) {
 	})
 	m.lists[inProgress].SetItems([]list.Item{
 		Task{status: todo, title: "walk dog", description: "walk the dog at 8:30pm"},
+		Task{status: todo, title: "walk cat", description: "walk the cat at 10:00pm"},
 	})
 	m.lists[done].SetItems([]list.Item{
 		Task{status: todo, title: "shopping", description: "buy new gloves for winter"},
@@ -98,6 +118,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// gives us terminal dimensions.
 	case tea.WindowSizeMsg:
 		if !m.loaded {
+			unfocusedStyle.Width(msg.Width / divisor)
+			focusedStyle.Width(msg.Width / divisor)
+
+			unfocusedStyle.Height(msg.Height - divisor)
+			focusedStyle.Height(msg.Height - divisor)
 			m.initLists(msg.Width, msg.Height)
 			m.loaded = true
 		}
@@ -108,8 +133,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "q":
 			m.quitting = true
 			return m, tea.Quit
-		}
 
+		case "left", "h":
+			m.Prev()
+
+		case "right", "l":
+			m.Next()
+		}
 	}
 
 	var cmd tea.Cmd
