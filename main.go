@@ -16,6 +16,18 @@ const (
 	done
 )
 
+// Styling
+var (
+	unfocusedStyle = lipgloss.NewStyle().
+			Padding(1, 2)
+	focusedStyle = lipgloss.NewStyle().
+			Padding(1, 2).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("62"))
+	helpStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("241"))
+)
+
 type Task struct {
 	status      status
 	title       string
@@ -35,10 +47,11 @@ func (t Task) Description() string {
 }
 
 type Model struct {
-	focused status
-	lists   []list.Model
-	err     error
-	loaded  bool
+	focused  status
+	lists    []list.Model
+	err      error
+	loaded   bool
+	quitting bool
 }
 
 func New() *Model {
@@ -47,7 +60,7 @@ func New() *Model {
 
 // initLists is called when the application starts up.
 func (m *Model) initLists(width, height int) {
-	defaultList := list.New([]list.Item{}, list.NewDefaultDelegate(), width/divisor, height)
+	defaultList := list.New([]list.Item{}, list.NewDefaultDelegate(), width/divisor, height-divisor)
 
 	// Set this to false if you want to hide the help
 	// indicators at the bottom of the terminal
@@ -88,6 +101,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.initLists(msg.Width, msg.Height)
 			m.loaded = true
 		}
+
+	// Detect keystrokes
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "ctrl+c", "q":
+			m.quitting = true
+			return m, tea.Quit
+		}
+
 	}
 
 	var cmd tea.Cmd
@@ -96,13 +118,40 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
+	// Don't render anything if we're quitting, makes the
+	// terminal clean after exiting the application.
+	if m.quitting {
+		return ""
+	}
+
 	if m.loaded {
-		return lipgloss.JoinHorizontal(
-			lipgloss.Left,
-			m.lists[todo].View(),
-			m.lists[inProgress].View(),
-			m.lists[done].View(),
-		)
+		todoView := m.lists[todo].View()
+		inProgView := m.lists[inProgress].View()
+		doneView := m.lists[done].View()
+
+		switch m.focused {
+		default:
+			return lipgloss.JoinHorizontal(
+				lipgloss.Left,
+				focusedStyle.Render(todoView),
+				unfocusedStyle.Render(inProgView),
+				unfocusedStyle.Render(doneView),
+			)
+		case inProgress:
+			return lipgloss.JoinHorizontal(
+				lipgloss.Left,
+				unfocusedStyle.Render(todoView),
+				focusedStyle.Render(inProgView),
+				unfocusedStyle.Render(doneView),
+			)
+		case done:
+			return lipgloss.JoinHorizontal(
+				lipgloss.Left,
+				unfocusedStyle.Render(todoView),
+				unfocusedStyle.Render(inProgView),
+				focusedStyle.Render(doneView),
+			)
+		}
 	}
 
 	return "loading..."
