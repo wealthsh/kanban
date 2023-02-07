@@ -64,12 +64,16 @@ func (m *Model) MoveToNext() tea.Msg {
 	return nil
 }
 
+func (m *Model) DeleteTask() tea.Msg {
+	selected := m.lists[m.focused]
+	m.lists[m.focused].RemoveItem(selected.Index())
+
+	return nil
+}
+
 // initLists is called when the application starts up.
 func (m *Model) initLists(width, height int) {
 	defaultList := list.New([]list.Item{}, list.NewDefaultDelegate(), width/divisor, height/2)
-
-	// Set this to false if you want to hide the help
-	// indicators at the bottom of the terminal
 	defaultList.SetShowHelp(false)
 
 	m.lists = []list.Model{defaultList, defaultList, defaultList}
@@ -122,13 +126,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "right", "l":
 			m.Next()
 		case "enter":
-			m.MoveToNext()
+			return m, m.MoveToNext
 		case "n":
 			Models[MainModel] = m
 			Models[FormModel] = NewForm(m.focused)
 			return Models[FormModel].Update(nil)
 		case "d":
-			// TODO: delete
+			return m, m.DeleteTask
 		}
 
 	case task.Task:
