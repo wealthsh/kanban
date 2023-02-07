@@ -2,9 +2,18 @@ package ui
 
 import (
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/textarea"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/wealthsh/kanban/internal/task"
+)
+
+var Models []tea.Model
+
+const (
+	MainModel int = iota
+	FormModel
 )
 
 const divisor = 4
@@ -13,10 +22,12 @@ var (
 	unfocusedStyle = lipgloss.NewStyle().
 			Padding(1, 2).
 			Border(lipgloss.HiddenBorder())
+
 	focusedStyle = lipgloss.NewStyle().
 			Padding(1, 2).
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("62"))
+
 	helpStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("241"))
 )
@@ -83,7 +94,7 @@ func (m *Model) initLists(width, height int) {
 	})
 	m.lists[task.InProgress].SetItems([]list.Item{
 		task.New(task.InProgress, "walk dog", "walk the dog at 8:30pm"),
-		task.New(task.InProgress, "walk cat", "walk the cat at 10:00pm"),
+		task.New(task.InProgress, "interview", "interview the cat at 10:00pm"),
 	})
 	m.lists[task.Done].SetItems([]list.Item{
 		task.New(task.Done, "buy groceries", "buy groceries at the grocery store"),
@@ -115,16 +126,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "q":
 			m.quitting = true
 			return m, tea.Quit
-
 		case "left", "h":
 			m.Prev()
-
 		case "right", "l":
 			m.Next()
-
 		case "enter":
 			m.MoveToNext()
+		case "n":
+			Models[MainModel] = m
+			Models[FormModel] = NewForm(m.focused)
+			return Models[FormModel].Update(nil)
+		case "d":
+			// TODO: delete
 		}
+
+	case task.Task:
+		task := msg
+		return m, m.lists[task.Status()].InsertItem(len(m.lists[task.Status()].Items()), task)
 	}
 
 	var cmd tea.Cmd
@@ -169,4 +187,69 @@ func (m Model) View() string {
 	}
 
 	return "Loading..."
+}
+
+type Form struct {
+	focused     task.Status
+	title       textinput.Model
+	description textarea.Model
+}
+
+func NewForm(focused task.Status) *Form {
+	form := &Form{
+		focused:     focused,
+		title:       textinput.New(),
+		description: textarea.New(),
+	}
+	form.title.Focus()
+	return form
+}
+
+func (m Form) Init() tea.Cmd {
+	return nil
+}
+
+func (m Form) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "ctrl+c", "q":
+			return m, tea.Quit
+		case "enter":
+			if m.title.Focused() {
+				m.title.Blur()
+				m.description.Focus()
+				return m, textarea.Blink
+			} else {
+				// Finish filling out the form, so save the
+				// task and return to the main view.
+				Models[FormModel] = m
+				return Models[MainModel], m.CreateTask
+			}
+		}
+
+		var cmd tea.Cmd
+
+		if m.title.Focused() {
+			m.title, cmd = m.title.Update(msg)
+			return m, cmd
+		} else {
+			m.description, cmd = m.description.Update(msg)
+			return m, cmd
+		}
+	}
+	return m, nil
+}
+
+func (m Form) View() string {
+	return lipgloss.JoinVertical(
+		lipgloss.Top,
+		m.title.View(),
+		m.description.View(),
+	)
+}
+
+func (m Form) CreateTask() tea.Msg {
+	task := task.New(m.focused, m.title.Value(), m.description.Value())
+	return task
 }
