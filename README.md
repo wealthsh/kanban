@@ -1,3 +1,10 @@
-# kanban
+# Kanban CLI
 
-[Building a CLI Kanban Board with Bubble Tea Playlist](https://www.youtube.com/playlist?list=PLLLtqOZfy0pcFoSIeGXO-SOaP9qLqd_H6)
+Kanban in your terminal built using [bubbletea](https://github.com/charmbracelet/bubbletea).
+
+## Quickstart
+
+```
+go get ./...
+go run .
+```
