@@ -47,6 +47,14 @@ func (t Task) Description() string {
 	return t.description
 }
 
+func (t *Task) Next() {
+	if t.status == done {
+		t.status = todo
+	} else {
+		t.status++
+	}
+}
+
 type Model struct {
 	focused  status
 	lists    []list.Model
@@ -57,6 +65,19 @@ type Model struct {
 
 func New() *Model {
 	return &Model{}
+}
+
+func (m *Model) MoveToNext() tea.Msg {
+	selected := m.lists[m.focused].SelectedItem()
+	task := selected.(Task)
+	m.lists[task.status].RemoveItem(m.lists[m.focused].Index())
+
+	// Move task to next list
+	task.Next()
+	idx := len(m.lists[task.status].Items())
+	m.lists[task.status].InsertItem(idx, list.Item(task))
+
+	return nil
 }
 
 // Go to next list
@@ -118,11 +139,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// gives us terminal dimensions.
 	case tea.WindowSizeMsg:
 		if !m.loaded {
+			// Set width and height of the columns
 			unfocusedStyle.Width(msg.Width / divisor)
-			focusedStyle.Width(msg.Width / divisor)
-
 			unfocusedStyle.Height(msg.Height - divisor)
+			focusedStyle.Width(msg.Width / divisor)
 			focusedStyle.Height(msg.Height - divisor)
+
+			// Initialize the lists
 			m.initLists(msg.Width, msg.Height)
 			m.loaded = true
 		}
@@ -139,6 +162,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "right", "l":
 			m.Next()
+
+		case "enter":
+			m.MoveToNext()
 		}
 	}
 
