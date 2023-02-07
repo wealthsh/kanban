@@ -18,15 +18,11 @@ var (
 			Padding(1, 2).
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("62"))
-
-	helpStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("241"))
 )
 
 type Model struct {
 	focused  task.Status
 	lists    []list.Model
-	err      error
 	loaded   bool
 	quitting bool
 }
@@ -156,29 +152,39 @@ func (m Model) View() string {
 		inProgView := m.lists[task.InProgress].View()
 		doneView := m.lists[task.Done].View()
 
+		var base string
+
 		switch m.focused {
 		case task.InProgress:
-			return lipgloss.JoinHorizontal(
+			base = lipgloss.JoinHorizontal(
 				lipgloss.Left,
 				unfocusedStyle.Render(todoView),
 				focusedStyle.Render(inProgView),
 				unfocusedStyle.Render(doneView),
 			)
+
 		case task.Done:
-			return lipgloss.JoinHorizontal(
+			base = lipgloss.JoinHorizontal(
 				lipgloss.Left,
 				unfocusedStyle.Render(todoView),
 				unfocusedStyle.Render(inProgView),
 				focusedStyle.Render(doneView),
 			)
 		default:
-			return lipgloss.JoinHorizontal(
+			base = lipgloss.JoinHorizontal(
 				lipgloss.Left,
 				focusedStyle.Render(todoView),
 				unfocusedStyle.Render(inProgView),
 				unfocusedStyle.Render(doneView),
 			)
 		}
+
+		base += lipgloss.NewStyle().
+			Padding(1, 0).
+			Foreground(lipgloss.Color("241")).
+			Render("Press 'n' to add a new task, 'd' to delete a task, '←' or '→' to move between columns, 'q' to quit")
+
+		return base
 	}
 
 	return "Loading..."

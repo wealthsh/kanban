@@ -63,6 +63,7 @@ func (m Form) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Form) View() string {
 	return lipgloss.JoinVertical(
 		lipgloss.Top,
+		"Create New Task\n",
 		m.title.View(),
 		m.description.View(),
 	)
